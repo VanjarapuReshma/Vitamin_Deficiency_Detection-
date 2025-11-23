@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>VitaBot Chatbot</title>
+
+  <!-- Material Icons (keeps look of MedTracker) -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@48,400,0,0&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@48,400,1,0" />
+
+  <style>
+    /* Inter font import and base UI (keeps layout/colors from your MedTracker) */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&display=swap');
+    *{margin:0;padding:0;box-sizing:border-box;font-family:"Inter",sans-serif}
+    body{width:100%;min-height:100vh;background:linear-gradient(#EEEEFF,#C8C7FF)}
+    #chatbot-toggler{position:fixed;bottom:30px;right:35px;border:none;height:50px;width:50px;display:flex;cursor:pointer;align-items:center;justify-content:center;border-radius:50%;background:#5350C4;box-shadow:0 0 20px rgba(0,0,0,.1);transition:all .2s}
+    body.show-chatbot #chatbot-toggler{transform:rotate(90deg)}
+    #chatbot-toggler span{color:#fff;position:absolute}
+    #chatbot-toggler span:last-child,body.show-chatbot #chatbot-toggler span:first-child{opacity:0}
+    body.show-chatbot #chatbot-toggler span:last-child{opacity:1}
+
+    .chatbot-popup{position:fixed;right:35px;bottom:90px;width:420px;overflow:hidden;background:#fff;border-radius:15px;opacity:0;pointer-events:none;transform:scale(.2);transform-origin:bottom right;box-shadow:0 0 128px 0 rgba(0,0,0,.1),0 32px 64px -48px rgba(0,0,0,.5);transition:all .1s}
+    body.show-chatbot .chatbot-popup{opacity:1;pointer-events:auto;transform:scale(1)}
+    .chat-header{display:flex;align-items:center;padding:15px 22px;background:#5350C4;justify-content:space-between}
+    .header-info{display:flex;gap:10px;align-items:center}
+    .chatbot-logo{width:35px;height:35px;padding:6px;fill:#5350C4;flex-shrink:0;background:#fff;border-radius:50%}
+    .logo-text{color:#fff;font-weight:600;font-size:1.31rem;letter-spacing:.02rem}
+    .chat-header .controls{display:flex;gap:8px;align-items:center}
+    .icon-btn{height:34px;width:34px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:transparent;border:none;color:#fff;cursor:pointer}
+    .chat-header #close-chatbot{border:none;color:#fff;height:40px;width:40px;font-size:1.9rem;margin-right:-10px;padding-top:2px;cursor:pointer;border-radius:50%;background:none;transition:.2s}
+    .chat-header #close-chatbot:hover{background:#3d39ac}
+
+    .chat-body{padding:25px 22px;gap:20px;display:flex;height:460px;overflow-y:auto;margin-bottom:82px;flex-direction:column;scrollbar-width:thin;scrollbar-color:#ccccf5 transparent;background:#fff}
+    .message{display:flex;gap:11px;align-items:center}
+    .bot-avatar{width:35px;height:35px;padding:6px;fill:#fff;flex-shrink:0;margin-bottom:2px;align-self:flex-end;border-radius:50%;background:#5350C4}
+    .message-text{padding:12px 16px;max-width:75%;font-size:.95rem}
+    .bot-message .message-text{background:#F2F2FF;border-radius:13px 13px 13px 3px}
+    .user-message{flex-direction:column;align-items:flex-end}
+    .user-message .message-text{color:#fff;background:#5350C4;border-radius:13px 13px 3px 13px}
+    .user-message .attachment{width:50%;margin-top:-7px;border-radius:13px 3px 13px 13px}
+    .bot-message .thinking-indicator{display:flex;gap:4px;padding-block:15px}
+    .dot{height:7px;width:7px;opacity:.7;border-radius:50%;background:#6F6BC2;animation:dotPulse 1.8s ease-in-out infinite}
+    .dot:nth-child(1){animation-delay:.2s}
+    .dot:nth-child(2){animation-delay:.3s}
+    .dot:nth-child(3){animation-delay:.4s}
+    @keyframes dotPulse{0%,44%{transform:translateY(0)}28%{opacity:.4;transform:translateY(-4px)}44%{opacity:.2}}
+
+    .chat-footer{position:absolute;bottom:0;width:100%;background:#fff;padding:15px 22px 20px}
+    .chat-form{display:flex;align-items:center;position:relative;background:#fff;border-radius:32px;outline:1px solid #CCCCE5;box-shadow:0 0 8px rgba(0,0,0,.06)}
+    .chat-form .message-input{width:100%;height:47px;outline:none;resize:none;border:none;max-height:180px;border-radius:inherit;font-size:.95rem;padding:14px 0 12px 18px}
+    .chat-controls{gap:6px;height:47px;display:flex;padding-right:6px;align-items:center;align-self:flex-end}
+    .chat-controls button{height:35px;width:35px;border:none;cursor:pointer;color:#706DB0;border-radius:50%;font-size:1.15rem;background:none;transition:.2s}
+    .chat-controls button:hover{color:#3d39ac;background:#f1f1ff}
+    .chat-controls #send-message{color:#fff;background:#5350C4}
+    .file-upload-wrapper{position:relative;height:35px;width:35px}
+    .file-upload-wrapper img{height:100%;width:100%;object-fit:cover;border-radius:50%;display:none}
+    .file-upload-wrapper.file-uploaded img{display:block}
+    #file-cancel{position:absolute;top:-6px;right:-6px;display:none;background:#fff;color:#ff0000;border-radius:50%;border:1px solid #eee}
+    .file-upload-wrapper.file-uploaded #file-cancel{display:block}
+    em-emoji-picker{position:absolute;left:50%;top:-337px;width:100%;max-width:350px;visibility:hidden;max-height:330px;transform:translateX(-50%)}
+    body.show-emoji-picker em-emoji-picker{visibility:visible}
+    @media(max-width:520px){#chatbot-toggler{right:20px;bottom:20px}.chatbot-popup{right:0;bottom:0;height:100%;border-radius:0;width:100%}.chatbot-popup .chat-header{padding:12px 15px}.chat-body{height:calc(90% - 55px);padding:25px 15px}.chat-footer{padding:10px 15px 15px}}
+
+    /* Simple modal for API key input */
+    .api-modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#fff;border-radius:10px;padding:16px;box-shadow:0 8px 40px rgba(0,0,0,.2);z-index:2000;width:360px;max-width:92%;display:none}
+    .api-modal.show{display:block}
+    .api-modal h3{margin-bottom:8px;font-size:1.05rem}
+    .api-modal textarea{width:100%;height:80px;padding:8px;border-radius:6px;border:1px solid #ddd;resize:vertical}
+    .api-modal .row{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:8px}
+    .api-modal .warning{font-size:.85rem;color:#b33;margin-top:8px;background:#fff0f0;padding:8px;border-radius:6px;border:1px solid #ffd6d6}
+    .api-modal .note{font-size:.84rem;color:#444;margin-top:8px}
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:1500;display:none}
+    .overlay.show{display:block}
+  </style>
+</head>
+<body>
+  <!-- Toggler -->
+  <button id="chatbot-toggler" aria-label="Open chat">
+    <span class="material-symbols-rounded">mode_comment</span>
+    <span class="material-symbols-rounded">close</span>
+  </button>
+
+  <!-- Chat Popup -->
+  <div class="chatbot-popup" role="dialog" aria-label="Chat popup">
+    <div class="chat-header">
+      <div class="header-info">
+        <svg class="chatbot-logo" xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M738.3 287.6H285.7c-59 0-106.8 47.8-106.8 106.8v303.1c0 59 47.8 106.8 106.8 106.8h81.5v111.1c0 .7.8 1.1 1.4.7l166.9-110.6 41.8-.8h117.4l43.6-.4c59 0 106.8-47.8 106.8-106.8V394.5c0-59-47.8-106.9-106.8-106.9zM351.7 448.2c0-29.5 23.9-53.5 53.5-53.5s53.5 23.9 53.5 53.5-23.9 53.5-53.5 53.5-53.5-23.9-53.5-53.5zm157.9 267.1c-67.8 0-123.8-47.5-132.3-109h264.6c-8.6 61.5-64.5 109-132.3 109zm110-213.7c-29.5 0-53.5-23.9-53.5-53.5s23.9-53.5 53.5-53.5 53.5 23.9 53.5 53.5-23.9 53.5-53.5 53.5zM867.2 644.5V453.1h26.5c19.4 0 35.1 15.7 35.1 35.1v121.1c0 19.4-15.7 35.1-35.1 35.1h-26.5zM95.2 609.4V488.2c0-19.4 15.7-35.1 35.1-35.1h26.5v191.3h-26.5c-19.4 0-35.1-15.7-35.1-35.1zM561.5 149.6c0 23.4-15.6 43.3-36.9 49.7v44.9h-30v-44.9c-21.4-6.5-36.9-26.3-36.9-49.7 0-28.6 23.3-51.9 51.9-51.9s51.9 23.3 51.9 51.9z"/></svg>
+        <h2 class="logo-text">VitaBot🩺</h2>
+      </div>
+
+      <div class="controls">
+        <!-- API key button (client-only flow) -->
+        <button id="open-api-key" class="icon-btn" title="Enter API Key">
+          <span class="material-symbols-rounded">vpn_key</span>
+        </button>
+        <button id="close-chatbot" class="material-symbols-rounded" title="Collapse chat">keyboard_arrow_down</button>
+      </div>
+    </div>
+
+    <div class="chat-body" id="chat-body" aria-live="polite">
+      <div class="message bot-message">
+        <svg class="bot-avatar" xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M738.3 287.6H285.7c-59 0-106.8 47.8-106.8 106.8v303.1c0 59 47.8 106.8 106.8 106.8h81.5v111.1c0 .7.8 1.1 1.4.7l166.9-110.6 41.8-.8h117.4l43.6-.4c59 0 106.8-47.8 106.8-106.8V394.5c0-59-47.8-106.9-106.8-106.9zM351.7 448.2c0-29.5 23.9-53.5 53.5-53.5s53.5 23.9 53.5 53.5-23.9 53.5-53.5 53.5-53.5-23.9-53.5-53.5zm157.9 267.1c-67.8 0-123.8-47.5-132.3-109h264.6c-8.6 61.5-64.5 109-132.3 109zm110-213.7c-29.5 0-53.5-23.9-53.5-53.5s23.9-53.5 53.5-53.5 53.5 23.9 53.5 53.5-23.9 53.5-53.5 53.5zM867.2 644.5V453.1h26.5c19.4 0 35.1 15.7 35.1 35.1v121.1c0 19.4-15.7 35.1-35.1 35.1h-26.5zM95.2 609.4V488.2c0-19.4 15.7-35.1 35.1-35.1h26.5v191.3h-26.5c-19.4 0-35.1-15.7-35.1-35.1zM561.5 149.6c0 23.4-15.6 43.3-36.9 49.7v44.9h-30v-44.9c-21.4-6.5-36.9-26.3-36.9-49.7 0-28.6 23.3-51.9 51.9-51.9s51.9 23.3 51.9 51.9z"/></svg>
+        <div class="message-text">Hey there<br/>How can I help you today?</div>
+      </div>
+    </div>
+
+    <div class="chat-footer">
+      <form class="chat-form" id="chat-form" onsubmit="return false;">
+        <textarea id="message-input" class="message-input" placeholder="Message..." required></textarea>
+        <div class="chat-controls" role="group" aria-label="Chat controls">
+          <button type="button" id="emoji-picker" class="material-symbols-outlined" title="Emoji">sentiment_satisfied</button>
+
+          <div class="file-upload-wrapper" id="file-wrapper">
+            <input type="file" accept="image/*" id="file-input" hidden />
+            <img id="file-preview" alt="attachment preview" />
+            <button id="file-upload" type="button" class="material-symbols-rounded" title="Attach image">attach_file</button>
+            <button id="file-cancel" type="button" class="material-symbols-rounded" title="Remove image">close</button>
+          </div>
+
+          <button id="voice" type="button" class="material-symbols-rounded" title="Voice input">mic</button>
+          <button id="send-message" type="submit" class="material-symbols-rounded" title="Send">arrow_upward</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- API key modal (client-only) -->
+  <div class="overlay" id="overlay"></div>
+  <div class="api-modal" id="api-modal" role="dialog" aria-modal="true" aria-label="Enter API Key">
+    <h3>Enter API key (client-only demo)</h3>
+    <textarea id="api-key-input" placeholder="Paste your Groq/OpenAI-compatible API key here (e.g. gsk_...)" ></textarea>
+    <div class="row">
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="save-api" style="padding:8px 12px;border-radius:8px;border:1px solid #5350C4;background:#5350C4;color:#fff;cursor:pointer">Save key</button>
+        <button id="clear-api" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;background:#fff;color:#333;cursor:pointer">Clear</button>
+      </div>
+      <button id="close-modal" style="padding:6px 8px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer">Close</button>
+    </div>
+    <div class="warning">
+      Warning: this key is stored only in page memory (not sent to any server). This is insecure — anyone who opens DevTools can read the key.
+    </div>
+    <div class="note">If the API refuses requests due to CORS, you'll see a "Network/CORS" error. In that case you must use a server/proxy (I can provide that code).</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/emoji-mart@latest/dist/browser.js"></script>
+  <script>
+    // CLIENT-ONLY CHAT DEMO
+    // - Purpose: single HTML file that uses only HTML/CSS/JS and lets you paste an API key for direct calls.
+    // - Caveats: key is exposed in the browser and many AI endpoints block browser calls (CORS). If you get CORS error, you'll need a proxy (server) and we can move to option B.
+
+    const chatBody = document.getElementById('chat-body');
+    const messageInput = document.getElementById('message-input');
+    const sendBtn = document.getElementById('send-message');
+    const fileInput = document.getElementById('file-input');
+    const fileWrapper = document.getElementById('file-wrapper');
+    const filePreview = document.getElementById('file-preview');
+    const fileCancel = document.getElementById('file-cancel');
+    const emojiToggle = document.getElementById('emoji-picker');
+    const voiceBtn = document.getElementById('voice');
+    const toggleBtn = document.getElementById('chatbot-toggler');
+    const closeChat = document.getElementById('close-chatbot');
+
+    // API (client-only)
+    const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+    let GROQ_API_KEY = ""; // set via modal (not persisted)
+
+    // modal elements
+    const apiModal = document.getElementById('api-modal');
+    const overlay = document.getElementById('overlay');
+    const openApiBtn = document.getElementById('open-api-key');
+    const saveApiBtn = document.getElementById('save-api');
+    const clearApiBtn = document.getElementById('clear-api');
+    const closeModalBtn = document.getElementById('close-modal');
+    const apiKeyInput = document.getElementById('api-key-input');
+
+    openApiBtn.addEventListener('click', () => {
+      apiKeyInput.value = GROQ_API_KEY || "";
+      apiModal.classList.add('show');
+      overlay.classList.add('show');
+      apiKeyInput.focus();
+    });
+    closeModalBtn.addEventListener('click', () => { apiModal.classList.remove('show'); overlay.classList.remove('show'); });
+    overlay.addEventListener('click', () => { apiModal.classList.remove('show'); overlay.classList.remove('show'); });
+
+    saveApiBtn.addEventListener('click', () => {
+      GROQ_API_KEY = apiKeyInput.value.trim();
+      apiModal.classList.remove('show');
+      overlay.classList.remove('show');
+      console.info("API key saved to page memory. (This is exposed in DevTools.)");
+      // small friendly UI confirmation bubble
+      pushSystemBubble("API key saved to page memory (client-only demo).");
+    });
+
+    clearApiBtn.addEventListener('click', () => {
+      GROQ_API_KEY = "";
+      apiKeyInput.value = "";
+      apiModal.classList.remove('show');
+      overlay.classList.remove('show');
+      pushSystemBubble("API key cleared.");
+    });
+
+    // Small helper to show system messages in chat (non-model)
+    function pushSystemBubble(text){
+      const el = document.createElement('div');
+      el.className = 'message bot-message';
+      el.innerHTML = `<svg class="bot-avatar" xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M738.3 287.6H285.7c-59 0-106.8 47.8-106.8 106.8v303.1c0 59 47.8 106.8 106.8 106.8h81.5v111.1c0 .7.8 1.1 1.4.7l166.9-110.6 41.8-.8h117.4l43.6-.4c59 0 106.8-47.8 106.8-106.8V394.5c0-59-47.8-106.9-106.8-106.9zM351.7 448.2c0-29.5 23.9-53.5 53.5-53.5s53.5 23.9 53.5 53.5-23.9 53.5-53.5 53.5-53.5-23.9-53.5-53.5zm157.9 267.1c-67.8 0-123.8-47.5-132.3-109h264.6c-8.6 61.5-64.5 109-132.3 109zm110-213.7c-29.5 0-53.5-23.9-53.5-53.5s23.9-53.5 53.5-53.5 53.5 23.9 53.5 53.5-23.9 53.5-53.5 53.5zM867.2 644.5V453.1h26.5c19.4 0 35.1 15.7 35.1 35.1v121.1c0 19.4-15.7 35.1-35.1 35.1h-26.5zM95.2 609.4V488.2c0-19.4 15.7-35.1 35.1-35.1h26.5v191.3h-26.5c-19.4 0-35.1-15.7-35.1-35.1zM561.5 149.6c0 23.4-15.6 43.3-36.9 49.7v44.9h-30v-44.9c-21.4-6.5-36.9-26.3-36.9-49.7 0-28.6 23.3-51.9 51.9-51.9s51.9 23.3 51.9 51.9z"/></svg>
+        <div class="message-text">${escapeHtml(text)}</div>`;
+      chatBody.appendChild(el);
+      chatBody.scrollTo({ top: chatBody.scrollHeight, behavior: 'smooth' });
+    }
+
+    // escape helper for safety in system messages
+    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, (m)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+    // Message element helper
+    function createMessageElement(content, ...classes){
+      const d = document.createElement('div');
+      d.classList.add('message', ...classes);
+      d.innerHTML = content;
+      return d;
+    }
+
+    // Generate bot response by calling Groq/OpenAI-compatible endpoint directly (client-only)
+    async function generateBotResponse(incomingDiv){
+      const msgEl = incomingDiv.querySelector('.message-text');
+
+      // check key
+      if(!GROQ_API_KEY){
+        showBotError(incomingDiv, "⚠ Missing API key. Click the key icon at the top, paste your key and Save.");
+        return;
+      }
+
+      // build payload (same format as BuddyBot)
+      const payload = {
+        model: "openai/gpt-oss-20b",
+        messages: [{ role: "user", content: (lastUserMessage || "") + (lastUserAttachment ? "\n[Image attached]" : "") }]
+      };
+
+      try {
+        const resp = await fetch(GROQ_API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${GROQ_API_KEY}`
+          },
+          body: JSON.stringify(payload)
+        });
+
+        // If response is not ok try to parse body for helpful text
+        const fullText = await resp.text();
+        let json = null;
+        try { json = JSON.parse(fullText); } catch(e){ json = null; }
+
+        if(!resp.ok){
+          // 401/403 or other API error — show message
+          const serverMsg = json?.error?.message || json?.message || fullText || resp.statusText;
+          showBotError(incomingDiv, `⚠ API error (${resp.status}): ${serverMsg}`);
+          console.error("API error response:", resp.status, serverMsg, json || fullText);
+          return;
+        }
+
+        // parse expected response
+        const aiText = (json?.choices?.[0]?.message?.content) || (json?.choices?.[0]?.text) || "";
+        if(!aiText){
+          showBotError(incomingDiv, "⚠ Unexpected API response format. See console for details.");
+          console.warn("Unexpected response:", json || fullText);
+          return;
+        }
+
+        // display
+        msgEl.innerText = aiText.trim();
+        msgEl.style.color = ""; // reset color
+        chatBody.scrollTo({ top: chatBody.scrollHeight, behavior: 'smooth' });
+
+      } catch (err) {
+        // Network or CORS error — Fetch throws TypeError for network failures / CORS
+        console.error("Fetch error:", err);
+        if (err instanceof TypeError) {
+          // very likely CORS or network error
+          showBotError(incomingDiv, "⚠ Network/CORS error: the browser blocked the request. Use a server/proxy or check console.");
+        } else {
+          showBotError(incomingDiv, "⚠ Network error. See console for details.");
+        }
+      } finally {
+        // cleanup thinking indicator
+        incomingDiv.classList.remove('thinking');
+        lastUserAttachment = null;
+        chatBody.scrollTo({ top: chatBody.scrollHeight, behavior: 'smooth' });
+      }
+    }
+
+    function showBotError(container, text){
+      const el = container.querySelector('.message-text');
+      el.innerText = text;
+      el.style.color = '#ff0000';
+      chatBody.scrollTo({ top: chatBody.scrollHeight, behavior: 'smooth' });
+    }
+
+    // Chat flow
+    let lastUserMessage = "";
+    let lastUserAttachment = null;
+
+    function handleOutgoing(e){
+      if(e) e.preventDefault();
+      const txt = messageInput.value.trim();
+      if(!txt && !lastUserAttachment) return;
+
+  lastUserMessage = txt || "";
+  // user message HTML (attachment included)
+  const imgTag = lastUserAttachment ? `<img src="data:${lastUserAttachment.mime_type};base64,${lastUserAttachment.data}" class="attachment" />` : "";
+  const userHtml = `<div class="message-text"></div>${imgTag}`;
+  const userDiv = createMessageElement(userHtml, 'user-message');
+      userDiv.querySelector('.message-text').innerText = lastUserMessage;
+      chatBody.appendChild(userDiv);
+      chatBody.scrollTo({ top: chatBody.scrollHeight, behavior: 'smooth' });
+
+      // reset input UI
+      messageInput.value = "";
+      fileWrapper.classList.remove('file-uploaded');
+      filePreview.src = ""; filePreview.style.display = "none"; fileCancel.style.display = "none";
+
+      // thinking bubble then call API
+      setTimeout(() => {
+        const botContent = `<svg class="bot-avatar" xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M738.3 287.6H285.7c-59 0-106.8 47.8-106.8 106.8v303.1c0 59 47.8 106.8 106.8 106.8h81.5v111.1c0 .7.8 1.1 1.4.7l166.9-110.6 41.8-.8h117.4l43.6-.4c59 0 106.8-47.8 106.8-106.8V394.5c0-59-47.8-106.9-106.8-106.9zM351.7 448.2c0-29.5 23.9-53.5 53.5-53.5s53.5 23.9 53.5 53.5-23.9 53.5-53.5 53.5-53.5-23.9-53.5-53.5zm157.9 267.1c-67.8 0-123.8-47.5-132.3-109h264.6c-8.6 61.5-64.5 109-132.3 109zm110-213.7c-29.5 0-53.5-23.9-53.5-53.5s23.9-53.5 53.5-53.5 53.5 23.9 53.5 53.5-23.9 53.5-53.5 53.5zM867.2 644.5V453.1h26.5c19.4 0 35.1 15.7 35.1 35.1v121.1c0 19.4-15.7 35.1-35.1 35.1h-26.5zM95.2 609.4V488.2c0-19.4 15.7-35.1 35.1-35.1h26.5v191.3h-26.5c-19.4 0-35.1-15.7-35.1-35.1zM561.5 149.6c0 23.4-15.6 43.3-36.9 49.7v44.9h-30v-44.9c-21.4-6.5-36.9-26.3-36.9-49.7 0-28.6 23.3-51.9 51.9-51.9s51.9 23.3 51.9 51.9z"/></svg>
+          <div class="message-text"><div class="thinking-indicator"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>`;
+        const incoming = createMessageElement(botContent, 'bot-message', 'thinking');
+        chatBody.appendChild(incoming);
+        chatBody.scrollTo({ top: chatBody.scrollHeight, behavior: 'smooth' });
+        generateBotResponse(incoming);
+      }, 600);
+    }
+
+    // Message input auto height
+    const initialInputHeight = messageInput.scrollHeight;
+    messageInput.addEventListener('input', () => {
+      messageInput.style.height = initialInputHeight + 'px';
+      messageInput.style.height = messageInput.scrollHeight + 'px';
+      document.querySelector('.chat-form').style.borderRadius = messageInput.scrollHeight > initialInputHeight ? '15px' : '32px';
+    });
+
+    // Enter to send (Shift+Enter for newline)
+    messageInput.addEventListener('keydown', (e) => {
+      const userMessage = e.target.value.trim();
+      if (e.key === 'Enter' && !e.shiftKey && userMessage) handleOutgoing(e);
+    });
+
+    // File handling + preview (base64)
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const base64 = ev.target.result.split(',')[1];
+        lastUserAttachment = { mime_type: file.type, data: base64 };
+        filePreview.src = ev.target.result; filePreview.style.display = 'block';
+        fileWrapper.classList.add('file-uploaded'); fileCancel.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+      fileInput.value = "";
+    });
+    document.getElementById('file-upload').addEventListener('click', () => fileInput.click());
+    fileCancel.addEventListener('click', () => { lastUserAttachment = null; filePreview.src = ''; filePreview.style.display = 'none'; fileWrapper.classList.remove('file-uploaded'); fileCancel.style.display = 'none'; });
+
+    // Emoji picker
+    const picker = new EmojiMart.Picker({ theme: 'light', skinTonePosition: 'none', previewPosition: 'none',
+      onEmojiSelect: (emoji) => {
+        const { selectionStart: start, selectionEnd: end } = messageInput;
+        messageInput.setRangeText(emoji.native, start, end, 'end');
+        messageInput.focus();
+        messageInput.dispatchEvent(new Event('input'));
+      },
+      onClickOutside: (e) => {
+        if(e.target.id === 'emoji-picker') document.body.classList.toggle('show-emoji-picker');
+        else document.body.classList.remove('show-emoji-picker');
+      }
+    });
+    document.querySelector('.chat-form').appendChild(picker);
+    emojiToggle.addEventListener('click', () => document.body.classList.toggle('show-emoji-picker'));
+
+    // Voice recognition (if available)
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(SpeechRecognition){
+      const recognition = new SpeechRecognition();
+      recognition.onresult = (e) => { messageInput.value = e.results[0][0].transcript; messageInput.dispatchEvent(new Event('input')); };
+      voiceBtn.addEventListener('click', () => { try { recognition.start(); } catch(err) { console.warn(err); } });
+    } else { voiceBtn.style.display = 'none'; }
+
+    // UI toggles
+    toggleBtn.addEventListener('click', () => document.body.classList.toggle('show-chatbot'));
+    closeChat.addEventListener('click', () => document.body.classList.remove('show-chatbot'));
+    sendBtn.addEventListener('click', handleOutgoing);
+
+    // Quick console helper (optional)
+    window.setGroqKey = (k) => { GROQ_API_KEY = String(k || "").trim(); console.info("GROQ_API_KEY set in page memory."); pushSystemBubble("API key saved to page memory (console)."); };
+
+    // initial helper message
+    pushSystemBubble("Click the key icon to paste your API key (required).");
+
+  </script>
+</body>
+</html>
