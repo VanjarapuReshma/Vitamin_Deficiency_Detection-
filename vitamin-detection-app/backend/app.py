@@ -5,6 +5,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
 import datetime
 import os
+import tempfile
+import gdown
 from vitamin_data.diet_data import vitamin_diets
 
 # === PDF GENERATION IMPORTS ===
@@ -21,6 +23,22 @@ from model.model_utils import (
     predict_vitamin_deficiency
 )
 
+# # === Configuration ===
+# app = Flask(__name__)
+# CORS(app)
+# SECRET_KEY = os.environ.get("VITAMIN_SECRET_KEY", "vitamin_secret_key")
+# DB_PATH = os.path.join(os.path.dirname(__file__), "db.sqlite3")
+# UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "uploads")
+# os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# # === Load Model Once on Startup ===
+# MODEL_PATH = os.path.join('model', 'vitamin_deficiency_model.h5')
+# JSON_PATH = os.path.join("model", "class_indices.json")
+# CSV_PATH = os.path.join("model", "vitamin_deficiency_data.csv")
+
+# model = load_vitamin_model(MODEL_PATH)
+# class_indices = load_class_indices(JSON_PATH)
+# mapping = load_mapping(CSV_PATH)
 # === Configuration ===
 app = Flask(__name__)
 CORS(app)
@@ -30,10 +48,30 @@ UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # === Load Model Once on Startup ===
-MODEL_PATH = os.path.join('model', 'vitamin_deficiency_model.h5')
+#MODEL_PATH = os.path.join('model', 'vitamin_deficiency_model .h5')
+#JSON_PATH = os.path.join("model", "class_indices.json")
+DRIVE_FILE_ID = '1WWbeQGkNBZg1vRKimuJXEo8zVMASP6sQ'
+MODEL_FILENAME = 'vitamin_deficiency_model.h5'
+MODEL_PATH = os.path.join(tempfile.gettempdir(), MODEL_FILENAME) # <-- Use tempfile
 JSON_PATH = os.path.join("model", "class_indices.json")
 CSV_PATH = os.path.join("model", "vitamin_deficiency_data.csv")
+# Before Line 41:
+def download_model_if_missing():
+    """Downloads the model from Google Drive if it doesn't exist locally."""
+    if not os.path.exists(MODEL_PATH):
+        print("Downloading model from Google Drive...")
+        try:
+            # gdown will download the file, handling the large file warning automatically
+            gdown.download(id=DRIVE_FILE_ID, output=MODEL_PATH, quiet=False)
+            print("Model download complete.")
+        except Exception as e:
+            print(f"Error downloading model: {e}")
+            # You might want to exit the app or raise the exception here
+            raise e
+    else:
+        print("Model file already exists in /tmp. Skipping download.")
 
+download_model_if_missing()
 model = load_vitamin_model(MODEL_PATH)
 class_indices = load_class_indices(JSON_PATH)
 mapping = load_mapping(CSV_PATH)
